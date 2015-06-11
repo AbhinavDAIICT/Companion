@@ -15,16 +15,23 @@ using System.Windows.Media;
 using Microsoft.Phone.Maps.Controls;
 using System.IO.IsolatedStorage;
 using System.Windows.Threading;
+using System.IO;
+using System.Runtime.Serialization.Json;
+using System.Text;
 
 namespace Companion
 {
     public partial class MainPage : PhoneApplicationPage
     {
+      //  MemoryStream memoryStream = new MemoryStream();
+       // DataContractJsonSerializer serializer = new DataContractJsonSerializer(typeof(PointStore));
         Geolocator geolocator = null;
+        string sb;
         private DispatcherTimer timer = new DispatcherTimer();
         bool tracking = false;
         private GeoCoordinateWatcher watcher = new GeoCoordinateWatcher(GeoPositionAccuracy.High);
         private MapPolyline line;
+        private FileOps fileOps;
         // Constructor
         public MainPage()
         {
@@ -36,19 +43,35 @@ namespace Companion
             line.StrokeThickness = 10;
             myMap.MapElements.Add(line);
             watcher.PositionChanged += Watcher_PositionChanged;
+           
+            fileOps = new FileOps("pqr.txt");
           
         }
 
         private void Watcher_PositionChanged(object sender, GeoPositionChangedEventArgs<GeoCoordinate> e)
         {
-            latitudeBlock.Text = e.Position.Location.Latitude.ToString("0.000000000000");
-            longitudeBlock.Text = e.Position.Location.Longitude.ToString("0.000000000000");            
+            string lati = e.Position.Location.Latitude.ToString("0.000000000000");
+            latitudeBlock.Text = lati;
+            string longi = e.Position.Location.Longitude.ToString("0.000000000000");
+            longitudeBlock.Text = longi;
             var coord = new GeoCoordinate(e.Position.Location.Latitude, e.Position.Location.Longitude);
             myMap.Center = coord;
             line.Path.Add(coord);
+            sb += lati;
+            sb += ",";
+            sb += longi;
+            sb += "\n";
         }
 
-
+        //public void savePoint(GeoCoordinate cord)
+        //{
+        //    memoryStream = new MemoryStream();
+        //    PointStore myClassObj = new PointStore(cord);
+        //    serializer.WriteObject(memoryStream, myClassObj);
+        //    byte[] jsonArray = memoryStream.ToArray();
+        //    memoryStream.Dispose();
+        //    textOutput.Text = Encoding.UTF8.GetString(jsonArray, 0, jsonArray.Length);
+        //}
 
         private async void ShowMyLocationOnTheMap()
         {
@@ -95,8 +118,10 @@ namespace Companion
                 watcher.Stop();
                 timer.Stop(); 
                 tracking = false;
+                fileOps.writeToFile(sb);
                 TrackLocationButton.Content = "track location";
                 statusBlock.Text = "stopped";
+                NavigationService.Navigate(new Uri("/ReDraw.xaml", UriKind.Relative));
             }
         }
 
@@ -143,6 +168,7 @@ namespace Companion
 
         protected override void OnNavigatedTo(System.Windows.Navigation.NavigationEventArgs e)
         {
+            
             if (IsolatedStorageSettings.ApplicationSettings.Contains("LocationConsent"))
             {
                 // User has opted in or out of Location
